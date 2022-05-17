@@ -1759,6 +1759,16 @@ impl QueryPlanner {
             ))),
         };
 
+        if let Err(err) = &plan {
+            self.logger.error(
+                &err.to_string(),
+                Some(HashMap::from([
+                    ("query".to_string(), stmt.to_string()),
+                    ("stage".to_string(), "planning".to_string()),
+                ])),
+            );
+        }
+
         plan
     }
 
@@ -1775,6 +1785,7 @@ impl QueryPlanner {
                     &"SELECT name, setting, short_desc as description FROM pg_catalog.pg_settings"
                         .to_string(),
                     self.state.protocol.clone(),
+                    self.logger.clone(),
                 )?
             } else {
                 parse_sql_to_statement(
@@ -1784,6 +1795,7 @@ impl QueryPlanner {
                         escape_single_quote_string(full_variable),
                     ),
                     self.state.protocol.clone(),
+                    self.logger.clone(),
                 )?
             };
 
@@ -1816,6 +1828,7 @@ impl QueryPlanner {
             let stmt = parse_sql_to_statement(
                 &"SELECT * FROM information_schema.processlist".to_string(),
                 self.state.protocol.clone(),
+                self.logger.clone(),
             )?;
 
             self.create_df_logical_plan(stmt)
@@ -1876,6 +1889,7 @@ impl QueryPlanner {
         let stmt = parse_sql_to_statement(
             &format!("SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value FROM performance_schema.session_variables {} ORDER BY Variable_name DESC", filter),
             self.state.protocol.clone(),
+            self.logger.clone(),
         )?;
 
         self.create_df_logical_plan(stmt)
@@ -2006,6 +2020,7 @@ impl QueryPlanner {
                 columns, information_schema_sql, filter
             ),
             self.state.protocol.clone(),
+            self.logger.clone(),
         )?;
 
         self.create_df_logical_plan(stmt)
@@ -2063,6 +2078,7 @@ WHERE `TABLE_SCHEMA` = '{}'",
                 columns, information_schema_sql, filter
             ),
             self.state.protocol.clone(),
+            self.logger.clone(),
         )?;
 
         self.create_df_logical_plan(stmt)
@@ -2095,6 +2111,7 @@ WHERE `TABLE_SCHEMA` = '{}'",
                 information_schema_sql, filter
             ),
             self.state.protocol.clone(),
+            self.logger.clone(),
         )?;
 
         self.create_df_logical_plan(stmt)
@@ -2441,7 +2458,17 @@ WHERE `TABLE_SCHEMA` = '{}'",
         let plan = df_query_planner
             .statement_to_plan(DFStatement::Statement(Box::new(stmt.clone())))
             .map_err(|err| {
-                CompilationError::internal(format!("Initial planning error: {}", err))
+                let message = format!("Initial planning error: {}", err);
+
+                self.logger.error(
+                    &message,
+                    Some(HashMap::from([
+                        ("query".to_string(), stmt.to_string()),
+                        ("stage".to_string(), "planning".to_string()),
+                    ])),
+                );
+
+                CompilationError::internal(message)
             })?;
 
         let optimized_plan = plan;
@@ -2467,9 +2494,14 @@ WHERE `TABLE_SCHEMA` = '{}'",
                 CubeErrorCauseType::User => CompilationError::User(e.message.to_string()),
             });
         if let Err(_) = &result {
-            self.logger
-                .error(format!("Can't rewrite plan: {:#?}", optimized_plan).as_str());
-            self.logger.error(format!("It may be this query is not supported yet. Please post an issue on GitHub https://github.com/cube-js/cube.js/issues/new?template=sql_api_query_issue.md or ask about it in Slack https://slack.cube.dev.").as_str());
+            self.logger.error(
+                format!("Can't rewrite plan: {:#?}", optimized_plan).as_str(),
+                Some(HashMap::from([
+                    ("query".to_string(), stmt.to_string()),
+                    ("stage".to_string(), "rewriting".to_string()),
+                ])),
+            );
+            self.logger.error(format!("It may be this query is not supported yet. Please post an issue on GitHub https://github.com/cube-js/cube.js/issues/new?template=sql_api_query_issue.md or ask about it in Slack https://slack.cube.dev.").as_str(), None);
         }
         let rewrite_plan = result?;
 
@@ -2492,6 +2524,7 @@ WHERE `TABLE_SCHEMA` = '{}'",
         let protocol = self.state.protocol.to_string();
         meta_fields.insert("protocol".to_string(), protocol);
         meta_fields.insert("apiType".to_string(), "sql".to_string());
+
         Some(meta_fields)
     }
 }
@@ -2646,7 +2679,7 @@ pub fn convert_sql_to_cube_query(
     session: Arc<Session>,
     logger: Arc<dyn ContextLogger>,
 ) -> CompilationResult<QueryPlan> {
-    let stmt = parse_sql_to_statement(&query, session.state.protocol.clone())?;
+    let stmt = parse_sql_to_statement(&query, session.state.protocol.clone(), logger.clone())?;
     convert_statement_to_cube_query(&stmt, meta, session, logger)
 }
 
@@ -2855,8 +2888,8 @@ mod tests {
 
         #[async_trait]
         impl ContextLogger for TestContextLogger {
-            fn error(&self, message: &str) {
-                log::error!("{}", message);
+            fn error(&self, message: &str, props: Option<HashMap<String, String>>) {
+                log::error!("{} {:?}", message, props.unwrap_or_default());
             }
         }
 
@@ -5235,7 +5268,7 @@ ORDER BY \"COUNT(count)\" DESC"
     }
 
     fn parse_expr_from_projection(query: &String, db: DatabaseProtocol) -> ast::Expr {
-        let stmt = parse_sql_to_statement(&query, db).unwrap();
+        let stmt = parse_sql_to_statement(&query, db, get_test_context_logger()).unwrap();
         match stmt {
             ast::Statement::Query(query) => match &query.body {
                 ast::SetExpr::Select(select) => {
