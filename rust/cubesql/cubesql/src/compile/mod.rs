@@ -65,7 +65,7 @@ use crate::{
         database_variables::{DatabaseVariable, DatabaseVariables},
         dataframe,
         session::DatabaseProtocol,
-        statement::{CastReplacer, ToTimestampReplacer, UdfWildcardArgReplacer},
+        statement::{CastReplacer, ToTimestampReplacer, UdfWildcardArgReplacer, SensitiveDataSanitizer},
         types::{CommandCompletion, StatusFlags},
         ColumnFlags, ColumnType, Session, SessionManager, SessionState,
     },
@@ -1763,7 +1763,7 @@ impl QueryPlanner {
             self.logger.error(
                 &err.to_string(),
                 Some(HashMap::from([
-                    ("query".to_string(), stmt.to_string()),
+                    ("query".to_string(), SensitiveDataSanitizer::new().replace(stmt).to_string()),
                     ("stage".to_string(), "planning".to_string()),
                 ])),
             );
@@ -2463,7 +2463,7 @@ WHERE `TABLE_SCHEMA` = '{}'",
                 self.logger.error(
                     &message,
                     Some(HashMap::from([
-                        ("query".to_string(), stmt.to_string()),
+                        ("query".to_string(), SensitiveDataSanitizer::new().replace(&stmt).to_string()),
                         ("stage".to_string(), "planning".to_string()),
                     ])),
                 );
@@ -2497,7 +2497,7 @@ WHERE `TABLE_SCHEMA` = '{}'",
             self.logger.error(
                 format!("Can't rewrite plan: {:#?}", optimized_plan).as_str(),
                 Some(HashMap::from([
-                    ("query".to_string(), stmt.to_string()),
+                    ("query".to_string(), SensitiveDataSanitizer::new().replace(&stmt).to_string()),
                     ("stage".to_string(), "rewriting".to_string()),
                 ])),
             );
