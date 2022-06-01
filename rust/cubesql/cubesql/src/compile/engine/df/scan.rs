@@ -180,7 +180,7 @@ impl CubeScanExecutionPlan {
                             }
                             serde_json::Value::Number(v) => builder.append_value(v.to_string())?,
                             v => {
-                                log::warn!(
+                                log::error!(
                                     "Unable to map value {:?} to DataType::Utf8 (returning null)",
                                     v
                                 );
@@ -217,7 +217,7 @@ impl CubeScanExecutionPlan {
                                 }
                             },
                             v => {
-                                log::warn!(
+                                log::error!(
                                     "Unable to map value {:?} to DataType::Int64 (returning null)",
                                     v
                                 );
@@ -254,7 +254,7 @@ impl CubeScanExecutionPlan {
                                 }
                             },
                             v => {
-                                log::warn!("Unable to map value {:?} to DataType::Float64 (returning null)", v);
+                                log::error!("Unable to map value {:?} to DataType::Float64 (returning null)", v);
 
                                 builder.append_null()?
                             }
@@ -281,13 +281,13 @@ impl CubeScanExecutionPlan {
                                 "true" | "1" => builder.append_value(true)?,
                                 "false" | "0" => builder.append_value(false)?,
                                 _ => {
-                                    log::warn!("Unable to map value {:?} to DataType::Boolean (returning null)", v);
+                                    log::error!("Unable to map value {:?} to DataType::Boolean (returning null)", v);
 
                                     builder.append_null()?
                                 }
                             },
                             v => {
-                                log::warn!("Unable to map value {:?} to DataType::Boolean (returning null)", v);
+                                log::error!("Unable to map value {:?} to DataType::Boolean (returning null)", v);
 
                                 builder.append_null()?
                             }
@@ -320,7 +320,7 @@ impl CubeScanExecutionPlan {
                                 builder.append_value(timestamp.timestamp_nanos())?;
                             }
                             v => {
-                                log::warn!("Unable to map value {:?} to DataType::Timestamp(TimeUnit::Nanosecond, None) (returning null)", v);
+                                log::error!("Unable to map value {:?} to DataType::Timestamp(TimeUnit::Nanosecond, None) (returning null)", v);
 
                                 builder.append_null()?
                             }
