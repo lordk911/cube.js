@@ -764,12 +764,8 @@ impl AsyncPostgresShim {
                     )
                 })?;
 
-                let plan = convert_statement_to_cube_query(
-                    &cursor.query,
-                    meta,
-                    self.session.clone(),
-                    self.logger.clone(),
-                )?;
+                let plan =
+                    convert_statement_to_cube_query(&cursor.query, meta, self.session.clone())?;
 
                 let mut portal = Portal::new(plan, cursor.format);
 
@@ -833,7 +829,6 @@ impl AsyncPostgresShim {
                     &select_stmt,
                     meta.clone(),
                     self.session.clone(),
-                    self.logger.clone(),
                 )?;
 
                 let cursor = Cursor {
@@ -877,12 +872,8 @@ impl AsyncPostgresShim {
                     .await?;
             }
             other => {
-                let plan = convert_statement_to_cube_query(
-                    &other,
-                    meta.clone(),
-                    self.session.clone(),
-                    self.logger.clone(),
-                )?;
+                let plan =
+                    convert_statement_to_cube_query(&other, meta.clone(), self.session.clone())?;
 
                 self.write_portal(&mut Portal::new(plan, Format::Text), 0)
                     .await?;
