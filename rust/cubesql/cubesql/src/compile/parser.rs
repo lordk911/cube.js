@@ -124,13 +124,7 @@ pub fn parse_sql_to_statements(
         DatabaseProtocol::PostgreSQL => Parser::parse_sql(&PostgreSqlDialect {}, query.as_str()),
     };
 
-    parse_result.map_err(|err| {
-        let err = CompilationError::user(format!("Unable to parse: {:?}", err));
-
-        log::error!("{}", err.to_string());
-
-        err
-    })
+    parse_result.map_err(|err| CompilationError::user(format!("Unable to parse: {:?}", err)))
 }
 
 pub fn parse_sql_to_statement(
@@ -153,8 +147,6 @@ pub fn parse_sql_to_statement(
                         &query
                     ))
                 };
-
-                log::error!("{}", err.to_string());
 
                 Err(err)
             }
