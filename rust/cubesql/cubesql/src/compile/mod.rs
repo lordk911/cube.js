@@ -4326,9 +4326,9 @@ ORDER BY \"COUNT(count)\" DESC"
                 get_test_session(DatabaseProtocol::MySQL),
             );
 
-            match &query {
+            match query {
                 Ok(_) => panic!("Query ({}) should return error", input_query),
-                Err(e) => assert_eq!(e, expected_error, "for {}", input_query),
+                Err(e) => assert_eq!(&e.with_meta(None), expected_error, "for {}", input_query),
             }
         }
     }
