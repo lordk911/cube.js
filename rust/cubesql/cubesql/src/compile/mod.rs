@@ -1405,6 +1405,10 @@ struct QueryPlanner {
     logger: Arc<dyn ContextLogger>,
 }
 
+lazy_static! {
+    static ref METABASE_WORKAROUND: regex::Regex = regex::Regex::new(r#"SELECT true AS "_" FROM "public"\."[a-zA-Z_]+" WHERE 1 <> 1 LIMIT 0"#).unwrap();
+}
+
 impl QueryPlanner {
     pub fn new(
         state: Arc<SessionState>,
@@ -1428,6 +1432,22 @@ impl QueryPlanner {
         stmt: &ast::Statement,
         q: &Box<ast::Query>,
     ) -> CompilationResult<QueryPlan> {
+        // @todo Better solution?
+        // Metabase
+        if METABASE_WORKAROUND.is_match(&stmt.to_string()) {
+            return Ok(QueryPlan::MetaTabular(
+                StatusFlags::empty(),
+                Box::new(dataframe::DataFrame::new(
+                    vec![dataframe::Column::new(
+                        "_".to_string(),
+                        ColumnType::Int8,
+                        ColumnFlags::empty(),
+                    )],
+                    vec![],
+                )),
+            ));
+        };
+
         // TODO move CUBESQL_REWRITE_ENGINE env to config
         let rewrite_engine = env::var("CUBESQL_REWRITE_ENGINE")
             .ok()
