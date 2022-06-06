@@ -432,21 +432,8 @@ impl RowDescriptionField {
             data_type_oid: typ.oid as i32,
             data_type_size: typ.typlen,
             type_modifier: -1,
-            format: if format == Format::Binary {
-                // TODO: Introduce new function for PgType that checks for binary support
-                if typ.oid == PgTypeId::INT4 as u32
-                    || typ.oid == PgTypeId::INT2 as u32
-                    || typ.oid == PgTypeId::INT8 as u32
-                    || typ.oid == PgTypeId::BOOL as u32
-                    || typ.oid == PgTypeId::FLOAT4 as u32
-                    || typ.oid == PgTypeId::FLOAT8 as u32
-                    || typ.oid == PgTypeId::TIMESTAMP as u32
-                    || typ.oid == PgTypeId::TIMESTAMPTZ as u32
-                {
-                    Format::Binary
-                } else {
-                    Format::Text
-                }
+            format: if format == Format::Binary && typ.is_binary_supported()  {
+                Format::Binary
             } else {
                 Format::Text
             },
